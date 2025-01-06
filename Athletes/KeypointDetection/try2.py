@@ -1,208 +1,125 @@
 import cv2
-from ultralytics import YOLO
-import numpy as np
-from sort import Sort
-import time
+import os
 import json
+from ultralytics import YOLO
 
-# Initialize the YOLOv8 pose model
-model = YOLO("yolov8s-pose.pt")
+# Initialize the YOLOv8n-pose model
+model = YOLO("yolov8s-pose.pt")  # Replace with your model path if different
 
-# Load video file
-video_path = "/Users/alessiacolumban/Desktop/Athletes/YouTubeDownload/DownloadedVideos/Filmpje sport.mp4"
+# Define the path to the video file and output folder
+video_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/YouTubeDownload/DownloadedVideos/Filmpje sport.mp4"
+output_json_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/JsonKeypoints/annotations.json"
+
+# Define the COCO keypoints order
+COCO_KEYPOINTS = [
+    'Nose', 'Left Eye', 'Right Eye', 'Left Ear', 'Right Ear',
+    'Left Shoulder', 'Right Shoulder', 'Left Elbow', 'Right Elbow',
+    'Left Wrist', 'Right Wrist', 'Left Hip', 'Right Hip',
+    'Left Knee', 'Right Knee', 'Left Ankle', 'Right Ankle'
+]
+
+# Skeleton structure connecting keypoints
+SKELETON = [
+    [0, 1], [1, 3], [3, 5], [0, 2], [2, 4], [4, 6],
+    [5, 7], [7, 9], [6, 8], [8, 10], [5, 11], [6, 12],
+    [11, 12], [11, 13], [13, 15], [12, 14], [14, 16]
+]
+
+# COCO annotations template
+coco_annotations = {
+    "images": [],
+    "annotations": [],
+    "categories": [
+        {
+            "id": 1,
+            "name": "person",
+            "supercategory": "person",
+            "keypoints": COCO_KEYPOINTS,
+            "skeleton": SKELETON
+        }
+    ]
+}
+
+# Open the video
 cap = cv2.VideoCapture(video_path)
-
 if not cap.isOpened():
-    print(f"Error: Cannot open video file at {video_path}")
+    print(f"Error: Cannot open video file {video_path}")
     exit()
-else:
-    print(f"Successfully opened video file at {video_path}")
 
-# Parameters
-frame_skip = 5  # Process every 5th frame
 frame_count = 0
-roi_margin = 10  # Margin around the athlete's bounding box
-min_bbox_size = 500  # Minimum bounding box area (to filter out irrelevant objects)
-max_search_frames = 20  # Maximum number of frames to search for the athlete after they disappear
-confidence_threshold = 0.5  # Higher confidence threshold for detection
-smoothing_factor = 0.5  # Smoothing factor for keypoint detection
-
-# Tracking variables
-tracker = Sort()
-athlete_track = None
-detection_counter = 0  # Counter to track how many frames the athlete has been consistently detected
-lost_frames = 0  # To count frames where athlete detection is lost
-athlete_missing_frames = 0  # Count frames where the athlete is missing (for 20 frame wait)
-previous_athlete_center = None  # Store previous position of the athlete
-
-# Optical Flow Parameters
-lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
-
-# Helper function to prioritize athlete detection (only one person is detected per frame)
-def prioritize_athlete(detections, tracked_objects, prev_athlete_center):
-    best_track = None
-    min_distance = float('inf')
-
-    for track in tracked_objects:
-        x1, y1, x2, y2, track_id = map(int, track)
-        bbox_center = ((x1 + x2) // 2, (y1 + y2) // 2)
-
-        # If there's a previously tracked athlete, check the proximity to their previous position
-        if prev_athlete_center:
-            distance = np.sqrt((bbox_center[0] - prev_athlete_center[0]) ** 2 +
-                               (bbox_center[1] - prev_athlete_center[1]) ** 2)
-        else:
-            # If no previous athlete, calculate distance to center of the frame
-            frame_center = (frame.shape[1] // 2, frame.shape[0] // 2)  # Use the center of the frame if no previous position
-            distance = np.sqrt((bbox_center[0] - frame_center[0]) ** 2 +
-                               (bbox_center[1] - frame_center[1]) ** 2)
-
-        # Select the closest person
-        if distance < min_distance:
-            min_distance = distance
-            best_track = (x1, y1, x2, y2)
-
-    return best_track
-
-# Define how many frames the athlete must be closest to "stick" to them
-min_frames_to_stick = 30  # Modify this based on how many frames you want to stick to the athlete
-
-# Prepare output json
-output_data = {"frames": []}
+image_id = 0
+annotation_id = 0
 
 # Process video frames
-while cap.isOpened():
+while True:
     success, frame = cap.read()
     if not success:
-        print("Error: Failed to read a frame.")
         break
 
     frame_count += 1
-    if frame_count % frame_skip != 0:
-        continue  # Skip frames for processing
+    image_id += 1
 
-    # Run YOLO detection
-    results = model(frame, conf=confidence_threshold, save=False)
-    detections = []
+    # Run YOLO pose detection
+    results = model(frame)
+
+    # Initialize variables for the closest person
+    closest_bbox = None
+    closest_keypoints = None
+    max_bbox_area = 0
 
     for result in results:
-        for bbox in result.boxes:
-            x1, y1, x2, y2 = bbox.xyxy[0].tolist()
-            conf = bbox.conf[0].item()
-            if (x2 - x1) * (y2 - y1) >= min_bbox_size:
-                detections.append([x1, y1, x2, y2, conf])
+        if result.keypoints is not None and result.boxes is not None and len(result.boxes) > 0:
+            keypoints = result.keypoints.xy.cpu().numpy().reshape(-1, 2)
+            bbox = result.boxes.xyxy.cpu().numpy()[0]
+            x_min, y_min, x_max, y_max = bbox
+            bbox_width = x_max - x_min
+            bbox_height = y_max - y_min
+            area = bbox_width * bbox_height
 
-    # Convert detections to numpy array
-    if len(detections) > 0:
-        detections = np.array(detections)
-    else:
-        detections = np.empty((0, 5))
+            # Update the closest person if this bounding box has a larger area
+            if area > max_bbox_area:
+                max_bbox_area = area
+                closest_bbox = bbox
+                closest_keypoints = keypoints
 
-    # Update tracker with detections
-    tracked_objects = tracker.update(detections)
+    # Save only the closest person annotation every 5 frames
+    if frame_count % 5 == 0 and closest_bbox is not None:
+        x_min, y_min, x_max, y_max = closest_bbox
+        bbox_width = x_max - x_min
+        bbox_height = y_max - y_min
+        area = bbox_width * bbox_height
+        keypoints_with_visibility = []
 
-    if len(tracked_objects) > 0:
-        # Get the closest person
-        prev_athlete_center = ((athlete_track[0] + athlete_track[2]) // 2, (athlete_track[1] + athlete_track[3]) // 2) if athlete_track is not None else None
-        athlete_track = prioritize_athlete(detections, tracked_objects, prev_athlete_center)
-        detection_counter += 1  # Increment counter when athlete is detected
+        for x, y in closest_keypoints:
+            keypoints_with_visibility.extend([float(x), float(y), 2])  # Ensure float values
 
-        # If we have detected the athlete consistently for enough frames, stick to this person
-        if detection_counter >= min_frames_to_stick:
-            print("Athlete detected consistently, sticking to this person.")
-            lost_frames = 0
-        else:
-            lost_frames += 1  # If athlete is not detected consistently, stop tracking them
-    else:
-        athlete_track = None
-        lost_frames += 1
+        # Add the closest person's annotation
+        annotation = {
+            "id": annotation_id,
+            "image_id": image_id,
+            "category_id": 1,
+            "bbox": [float(x_min), float(y_min), float(bbox_width), float(bbox_height)],  # Ensure bbox values are floats
+            "area": float(area),  # Ensure area is float
+            "keypoints": keypoints_with_visibility,
+            "num_keypoints": len(COCO_KEYPOINTS)
+        }
+        annotation_id += 1
+        coco_annotations["annotations"].append(annotation)
 
-    if athlete_track is None and lost_frames >= max_search_frames:
-        athlete_track = None
-        detection_counter = 0  # Reset detection counter if athlete is missing for too long
+        # Add image info to COCO annotations
+        coco_annotations["images"].append({
+            "id": image_id,
+            "file_name": f"frame_{frame_count:06d}.jpg",
+            "width": frame.shape[1],
+            "height": frame.shape[0]
+        })
 
-    # Process keypoint detection for the athlete
-    if athlete_track is not None:
-        x1, y1, x2, y2 = map(int, athlete_track[:4])
+        # Save COCO annotations to file every 5 frames
+        with open(output_json_path, "w") as f:
+            json.dump(coco_annotations, f, indent=4)
 
-        # Draw bounding box around athlete
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(frame, "Athlete", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-        # Extract ROI around athlete for keypoint detection
-        athlete_roi = frame[max(0, y1 - roi_margin):min(frame.shape[0], y2 + roi_margin),
-                            max(0, x1 - roi_margin):min(frame.shape[1], x2 + roi_margin)]
-
-        # Run keypoint detection on the athlete's ROI
-        keypoint_results = model(athlete_roi, save=False)
-        if len(keypoint_results[0].keypoints) > 0:
-            keypoints = keypoint_results[0].keypoints[0].xy.numpy()  # Extract coordinates as numpy array
-
-            # Check if there are enough keypoints before accessing them
-            body_parts = {}
-            if len(keypoints) > 0:
-                body_parts["Nose"] = keypoints[0].tolist() if len(keypoints) > 0 else None
-            if len(keypoints) > 1:
-                body_parts["Left Eye"] = keypoints[1].tolist() if len(keypoints) > 1 else None
-            if len(keypoints) > 2:
-                body_parts["Right Eye"] = keypoints[2].tolist() if len(keypoints) > 2 else None
-            if len(keypoints) > 5:
-                body_parts["Left Shoulder"] = keypoints[5].tolist() if len(keypoints) > 5 else None
-            if len(keypoints) > 6:
-                body_parts["Right Shoulder"] = keypoints[6].tolist() if len(keypoints) > 6 else None
-            if len(keypoints) > 7:
-                body_parts["Left Elbow"] = keypoints[7].tolist() if len(keypoints) > 7 else None
-            if len(keypoints) > 8:
-                body_parts["Right Elbow"] = keypoints[8].tolist() if len(keypoints) > 8 else None
-            if len(keypoints) > 9:
-                body_parts["Left Wrist"] = keypoints[9].tolist() if len(keypoints) > 9 else None
-            if len(keypoints) > 10:
-                body_parts["Right Wrist"] = keypoints[10].tolist() if len(keypoints) > 10 else None
-            if len(keypoints) > 11:
-                body_parts["Left Hip"] = keypoints[11].tolist() if len(keypoints) > 11 else None
-            if len(keypoints) > 12:
-                body_parts["Right Hip"] = keypoints[12].tolist() if len(keypoints) > 12 else None
-            if len(keypoints) > 13:
-                body_parts["Left Knee"] = keypoints[13].tolist() if len(keypoints) > 13 else None
-            if len(keypoints) > 14:
-                body_parts["Right Knee"] = keypoints[14].tolist() if len(keypoints) > 14 else None
-            if len(keypoints) > 15:
-                body_parts["Left Ankle"] = keypoints[15].tolist() if len(keypoints) > 15 else None
-            if len(keypoints) > 16:
-                body_parts["Right Ankle"] = keypoints[16].tolist() if len(keypoints) > 16 else None
-
-            # Add frame data to output
-            output_data["frames"].append({
-                "frame_id": frame_count,
-                "bounding_box": [x1, y1, x2, y2],
-                "body_parts": body_parts
-            })
-
-            # Apply smoothing to keypoints (only if prev_keypoints exists)
-            if prev_keypoints is not None:
-                keypoints = smoothing_factor * keypoints + (1 - smoothing_factor) * prev_keypoints
-
-            annotated_frame = keypoint_results[0].plot()
-
-            # Overlay the annotated ROI onto the frame
-            frame[max(0, y1 - roi_margin):min(frame.shape[0], y2 + roi_margin),
-                  max(0, x1 - roi_margin):min(frame.shape[1], x2 + roi_margin)] = annotated_frame
-
-            prev_keypoints = keypoints  # Store the current keypoints for next frame
-
-        else:
-            print("No keypoints detected for the athlete.")
-
-    # Show the frame with detection and keypoints
-    cv2.imshow("Athlete Keypoint Detection", frame)
-
-    # Save output to JSON periodically (optional)
-    if frame_count % 50 == 0:  # Save every 50 frames
-        with open(f"output_{frame_count}.json", "w") as f:
-            json.dump(output_data, f)
-
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        print(f"Processed frame {frame_count}")
 
 cap.release()
-cv2.destroyAllWindows()
+
+print(f"COCO annotations saved to {output_json_path}")
