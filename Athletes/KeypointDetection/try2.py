@@ -6,8 +6,8 @@ from ultralytics import YOLO
 # Initialize the YOLOv8n-pose model
 model = YOLO("yolov8s-pose.pt")  # Replace with your model path if different
 
-# Define the path to the video file and output folder
-video_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/YouTubeDownload/DownloadedVideos/Filmpje sport.mp4"
+# Define the path to the video folder and output folder
+video_folder_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/cutvideos"
 output_json_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/JsonKeypoints/annotations.json"
 
 # Define the COCO keypoints order
@@ -40,86 +40,90 @@ coco_annotations = {
     ]
 }
 
-# Open the video
-cap = cv2.VideoCapture(video_path)
-if not cap.isOpened():
-    print(f"Error: Cannot open video file {video_path}")
-    exit()
+# List all video files in the folder and sort them numerically
+video_files = sorted([f for f in os.listdir(video_folder_path) if f.endswith(('.mp4', '.avi', '.mov'))], key=lambda x: int(''.join(filter(str.isdigit, x))))
 
-frame_count = 0
-image_id = 0
-annotation_id = 0
+for video_file in video_files:
+    video_path = os.path.join(video_folder_path, video_file)
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Error: Cannot open video file {video_path}")
+        continue
 
-# Process video frames
-while True:
-    success, frame = cap.read()
-    if not success:
-        break
+    frame_count = 0
+    image_id = 0
+    annotation_id = 0
 
-    frame_count += 1
-    image_id += 1
+    # Process video frames
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
 
-    # Run YOLO pose detection
-    results = model(frame)
+        frame_count += 1
+        image_id += 1
 
-    # Initialize variables for the closest person
-    closest_bbox = None
-    closest_keypoints = None
-    max_bbox_area = 0
+        # Run YOLO pose detection
+        results = model(frame)
 
-    for result in results:
-        if result.keypoints is not None and result.boxes is not None and len(result.boxes) > 0:
-            keypoints = result.keypoints.xy.cpu().numpy().reshape(-1, 2)
-            bbox = result.boxes.xyxy.cpu().numpy()[0]
-            x_min, y_min, x_max, y_max = bbox
+        # Initialize variables for the closest person
+        closest_bbox = None
+        closest_keypoints = None
+        max_bbox_area = 0
+
+        for result in results:
+            if result.keypoints is not None and result.boxes is not None and len(result.boxes) > 0:
+                keypoints = result.keypoints.xy.cpu().numpy().reshape(-1, 2)
+                bbox = result.boxes.xyxy.cpu().numpy()[0]
+                x_min, y_min, x_max, y_max = bbox
+                bbox_width = x_max - x_min
+                bbox_height = y_max - y_min
+                area = bbox_width * bbox_height
+
+                # Update the closest person if this bounding box has a larger area
+                if area > max_bbox_area:
+                    max_bbox_area = area
+                    closest_bbox = bbox
+                    closest_keypoints = keypoints
+
+        # Save only the closest person annotation every 5 frames
+        if frame_count % 5 == 0 and closest_bbox is not None:
+            x_min, y_min, x_max, y_max = closest_bbox
             bbox_width = x_max - x_min
             bbox_height = y_max - y_min
             area = bbox_width * bbox_height
+            keypoints_with_visibility = []
 
-            # Update the closest person if this bounding box has a larger area
-            if area > max_bbox_area:
-                max_bbox_area = area
-                closest_bbox = bbox
-                closest_keypoints = keypoints
+            for x, y in closest_keypoints:
+                keypoints_with_visibility.extend([float(x), float(y), 2])  # Ensure float values
 
-    # Save only the closest person annotation every 5 frames
-    if frame_count % 5 == 0 and closest_bbox is not None:
-        x_min, y_min, x_max, y_max = closest_bbox
-        bbox_width = x_max - x_min
-        bbox_height = y_max - y_min
-        area = bbox_width * bbox_height
-        keypoints_with_visibility = []
+            # Add the closest person's annotation
+            annotation = {
+                "id": annotation_id,
+                "image_id": image_id,
+                "category_id": 1,
+                "bbox": [float(x_min), float(y_min), float(bbox_width), float(bbox_height)],  # Ensure bbox values are floats
+                "area": float(area),  # Ensure area is float
+                "keypoints": keypoints_with_visibility,
+                "num_keypoints": len(COCO_KEYPOINTS)
+            }
+            annotation_id += 1
+            coco_annotations["annotations"].append(annotation)
 
-        for x, y in closest_keypoints:
-            keypoints_with_visibility.extend([float(x), float(y), 2])  # Ensure float values
+            # Add image info to COCO annotations, including the video name
+            coco_annotations["images"].append({
+                "id": image_id,
+                "file_name": f"{video_file}_frame_{frame_count:06d}.jpg",
+                "width": frame.shape[1],
+                "height": frame.shape[0]
+            })
 
-        # Add the closest person's annotation
-        annotation = {
-            "id": annotation_id,
-            "image_id": image_id,
-            "category_id": 1,
-            "bbox": [float(x_min), float(y_min), float(bbox_width), float(bbox_height)],  # Ensure bbox values are floats
-            "area": float(area),  # Ensure area is float
-            "keypoints": keypoints_with_visibility,
-            "num_keypoints": len(COCO_KEYPOINTS)
-        }
-        annotation_id += 1
-        coco_annotations["annotations"].append(annotation)
+            # Save COCO annotations to file every 5 frames
+            with open(output_json_path, "w") as f:
+                json.dump(coco_annotations, f, indent=4)
 
-        # Add image info to COCO annotations
-        coco_annotations["images"].append({
-            "id": image_id,
-            "file_name": f"frame_{frame_count:06d}.jpg",
-            "width": frame.shape[1],
-            "height": frame.shape[0]
-        })
+            print(f"Processed frame {frame_count} from {video_file}")
 
-        # Save COCO annotations to file every 5 frames
-        with open(output_json_path, "w") as f:
-            json.dump(coco_annotations, f, indent=4)
-
-        print(f"Processed frame {frame_count}")
-
-cap.release()
+    cap.release()
 
 print(f"COCO annotations saved to {output_json_path}")
