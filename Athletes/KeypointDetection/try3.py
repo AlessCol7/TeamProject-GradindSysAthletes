@@ -6,9 +6,8 @@ from ultralytics import YOLO
 model = YOLO("yolov8s-pose.pt")  # Replace with your model path if different
 
 # Define the path to the video file and output folder
-video_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/YouTubeDownload/DownloadedVideos/Filmpje sport.mp4"
-output_video_folder = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/cutvideos"
-
+video_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/YouTubeDownload/DownloadedVideos/atletiek 8 filmpjes.mp4"
+output_video_folder = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/cutvideos/atletiek 8 filmpjes"
 # Ensure output folder exists
 os.makedirs(output_video_folder, exist_ok=True)
 
