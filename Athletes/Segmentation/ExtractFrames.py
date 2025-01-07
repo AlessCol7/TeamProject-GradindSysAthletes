@@ -2,12 +2,11 @@ import cv2
 import os
 import matplotlib.pyplot as plt
 
-# Directory where your video files are located
-video_dir = "Athletes/KeypointDetection/cutvideos"  # Path to where videos are stored
+video_dir = "Athletes/YouTubeDownload/DownloadedVideos"
 output_frame_dir = "Athletes/Segmentation/SavedFrames"  # Path to save the extracted frames
 
 # Function to extract frames from a video
-def extract_frames_from_video(video_path, output_dir, frame_interval=5):
+def extract_frames_from_video(video_path, output_dir, frame_interval=20):
     # Create output directory if it doesn't exist
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -58,13 +57,15 @@ def segment_frames(frames, filenames, segments):
 
 # Define your exercise segments here (same as before)
 exercise_segments = {
-    'Sprint Start': (0, 20),   # Frames 0-20 represent the sprint start
-    'Sprint Running': (21, 50),  # Frames 21-50 represent the sprint running
-    'Shot Put': (51, 70),  # Frames 51-70 represent the shot put phase
-    'High Jump': (71, 90),  # Frames 71-90 represent the high jump phase
-    'Long Jump': (91, 110),  # Frames 91-110 represent the long jump
-    'Discus Throw': (111, 130),  # Frames 111-130 represent discus throw
-    'Javelin': (131, 150),  # Frames 131-150 represent the javelin throw
+    '1-Sprint Start': (300, 900),   
+    '2-Sprint Running': (920, 1220), 
+    '3-Shot Put': (1240, 1900),  
+    '4-High Jump': (1920, 2680),  
+    '5-Hurdling':(2700, 3000),
+    '6-Long Jump': (3200, 4000), 
+    '7-Discus Throw': (4200,6000),  
+    '8-Javelin': (6020,7000),  
+    '9-Relay receiver': (7020,7500)
 }
 
 # Extract frames from each video in the video directory
