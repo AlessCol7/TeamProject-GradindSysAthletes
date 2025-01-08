@@ -7,8 +7,8 @@ from ultralytics import YOLO
 model = YOLO("yolov8s-pose.pt")  # Replace with your model path if different
 
 # Define the path to the video folder and output folder
-video_folder_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/exercises/Hordenlopen"
-output_json_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/JsonScore/Hordenlopen.json"
+video_folder_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/exercises/sprint_start"
+output_json_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/JsonScore/sprint.json"
 
 # Define the COCO keypoints order
 COCO_KEYPOINTS = [
