@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 
 video_dir = "Athletes/YouTubeDownload/DownloadedVideos"
-output_frame_dir = "Athletes/Segmentation/SavedFrames"  # Path to save the extracted frames
+output_frame_dir = "Athletes/Segmentation/Try"  # Path to save the extracted frames
 
 # Function to extract frames from a video
 def extract_frames_from_video(video_path, output_dir, frame_interval=20):
