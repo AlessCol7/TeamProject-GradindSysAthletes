@@ -4,11 +4,11 @@ import json
 from ultralytics import YOLO
 
 # Initialize the YOLOv8n-pose model
-model = YOLO("yolov8s-pose.pt")  # Replace with your model path if different
+model = YOLO("SportBranches-1/yolov8s.pt")  # Replace with your model path if different
 
 # Define the path to the video file and output folder
-video_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/YouTubeDownload/DownloadedVideos/Filmpje sport.mp4"
-output_json_path = "/Users/alessiacolumban/Desktop/TeamProject-GradindSysAthletes/Athletes/KeypointDetection/JsonKeypoints/annotations.json"
+video_path = "SportBranches-1/dataset"
+output_json_path = "Athletes/KeypointDetection/JsonKeypoints"
 
 # Define the COCO keypoints order
 COCO_KEYPOINTS = [
