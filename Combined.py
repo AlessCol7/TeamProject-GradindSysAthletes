@@ -9,11 +9,9 @@ import re
 
 # validate email format
 def is_valid_student_email(email):
-    # name.lastname@student.howest.be
     return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zA-Z]+)*@student\.howest\.be$', email))
 
 def is_valid_teacher_email(email):
-    # name.lastname@howest.be
     return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zA-Z]+)*@howest\.be$', email))
 
 # validate email format based on role
@@ -29,14 +27,10 @@ def validate_email(email, role):
 
 # validate password
 def validate_password(password):
-    # Check if password is at least 8 characters long
     if len(password) < 8:
         return "Error: Password must be at least 8 characters long."
-    
-    # Check if password contains spaces
     if ' ' in password:
         return "Error: Password should not contain spaces."
-    
     return None  # No errors, password is valid
 
 
@@ -58,6 +52,9 @@ def connect_to_db():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
 # Updated register_user function with email validation
 def register_user(first_name, last_name, email, password, role):
     # Validate email
@@ -65,7 +62,7 @@ def register_user(first_name, last_name, email, password, role):
     if email_error:
         return email_error
     
-     # Validate password
+    # Validate password
     password_error = validate_password(password)
     if password_error:
         return password_error
@@ -109,12 +106,18 @@ def student_view():
 def teacher_view():
     return "Welcome, Teacher! You can view all students' videos and results."
 
+# Track user login status
+user_logged_in = None  # Can be 'student', 'teacher', or None if not logged in
+
 # Login and registration page functions
 def login_page(email, password):
+    global user_logged_in
     role = validate_login(email, password)
     if role == "student":
+        user_logged_in = "student"
         return student_view()
     elif role == "teacher":
+        user_logged_in = "teacher"
         return teacher_view()
     else:
         return "Invalid email or password. Please try again."
@@ -127,6 +130,9 @@ UPLOAD_API_URL = TRIGGER_URL
 
 # Function to handle video uploads
 def upload_video(file):
+    if user_logged_in is None:
+        return "Error: You need to register or log in before uploading a video."
+    
     if file is None:
         return "Please upload a video file."
 
@@ -167,7 +173,6 @@ with gr.Blocks() as athletics_app:
         register_btn = gr.Button("Register")
         register_output = gr.Textbox(label="Registration Result", interactive=False)
 
-        # Update inputs and function call for registration
         register_btn.click(
             register_page,
             inputs=[first_name_input, last_name_input, email_input, password_input_reg, role_input_reg],
