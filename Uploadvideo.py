@@ -55,4 +55,3 @@ with gr.Blocks() as athletics_app:
     
 # Launch the app
 athletics_app.launch()
-
