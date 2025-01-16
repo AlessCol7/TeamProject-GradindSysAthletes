@@ -50,6 +50,13 @@ def connect_to_db():
                       'Connection Timeout=30;')
 
     return conn
+# def connect_to_db():
+#     try:
+#         conn = pyodbc.connect(CONNECTION_STRING)
+#         return conn
+#     except pyodbc.Error as e:
+#         print(f"Database connection failed: {e}")
+#         raise
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -188,7 +195,7 @@ def get_uploaded_videos():
 
 # Gradio Interface
 with gr.Blocks() as athletics_app:
-    gr.Markdown("# Athletics App - Login, Register & Upload")
+    gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System 🏃‍♂️🏃‍♀️")
 
     # Register Tab
     with gr.Tab("Register"):
