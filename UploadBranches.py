@@ -95,8 +95,15 @@ def login_page(email, password):
     else:
         return "Invalid email or password. Please try again."
 
+# def register_page(first_name, last_name, email, password, role):
+#     return register_user(first_name, last_name, email, password, role)
 def register_page(first_name, last_name, email, password, role):
+    if not first_name.strip():
+        return "Error: First name is required."
+    if not last_name.strip():
+        return "Error: Last name is required."
     return register_user(first_name, last_name, email, password, role)
+
 
 UPLOAD_API_URL = TRIGGER_URL
 current_user_email = None
@@ -155,15 +162,60 @@ def get_uploaded_videos():
     """)
     return cursor.fetchall()
 
+# with gr.Blocks() as athletics_app:
+#     gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
+
+#     with gr.Tab("Register"):
+#         first_name_input = gr.Textbox(label="First Name")
+#         last_name_input = gr.Textbox(label="Last Name")
+#         email_input = gr.Textbox(label="Email")
+#         password_input_reg = gr.Textbox(label="Password", type="password")
+#         role_input_reg = gr.Radio(["student", "teacher"], label="Role")
+#         register_btn = gr.Button("Register")
+#         register_output = gr.Textbox(label="Registration Result", interactive=False)
+
+#         register_btn.click(
+#             register_page,
+#             inputs=[first_name_input, last_name_input, email_input, password_input_reg, role_input_reg],
+#             outputs=register_output
+#         )
+
+#     with gr.Tab("Login"):
+#         email_input_log = gr.Textbox(label="Email")
+#         password_input_log = gr.Textbox(label="Password", type="password")
+#         login_btn = gr.Button("Login")
+#         login_output = gr.Textbox(label="Login Result", interactive=False)
+
+#         login_btn.click(login_page, inputs=[email_input_log, password_input_log], outputs=login_output)
+
+#     with gr.Tab("Upload Video"):
+#         sport_branch_input = gr.Dropdown(
+#             ["Sprint Start", "Sprint Running", "Shot Put", "Relay Receiver", "Long Jump", "Javelin", "High Jump", "Discus Throw", "Hurdling"],
+#             label="Select Sport Branch"
+#         )
+#         video_input = gr.Video(label="Upload Video")
+#         upload_btn = gr.Button("Upload")
+#         upload_output = gr.Textbox(label="Status")
+
+#         upload_btn.click(upload_video, inputs=[video_input, sport_branch_input], outputs=upload_output)
+
+#     with gr.Tab("View Results"):
+#         gr.Markdown("## View Results")
+#         uploaded_videos = get_uploaded_videos()
+#         for video in uploaded_videos:
+#             gr.Markdown(f"**{video[0]} {video[1]}** uploaded: {video[2]} by {video[3]}")
+
+# athletics_app.launch()
+
 with gr.Blocks() as athletics_app:
     gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
 
     with gr.Tab("Register"):
-        first_name_input = gr.Textbox(label="First Name")
-        last_name_input = gr.Textbox(label="Last Name")
-        email_input = gr.Textbox(label="Email")
-        password_input_reg = gr.Textbox(label="Password", type="password")
-        role_input_reg = gr.Radio(["student", "teacher"], label="Role")
+        first_name_input = gr.Textbox(label="First Name *")
+        last_name_input = gr.Textbox(label="Last Name *")
+        email_input = gr.Textbox(label="Email *")
+        password_input_reg = gr.Textbox(label="Password *", type="password")
+        role_input_reg = gr.Radio(["student", "teacher"], label="Role *")
         register_btn = gr.Button("Register")
         register_output = gr.Textbox(label="Registration Result", interactive=False)
 
@@ -174,23 +226,43 @@ with gr.Blocks() as athletics_app:
         )
 
     with gr.Tab("Login"):
-        email_input_log = gr.Textbox(label="Email")
-        password_input_log = gr.Textbox(label="Password", type="password")
+        email_input_log = gr.Textbox(label="Email *")
+        password_input_log = gr.Textbox(label="Password *", type="password")
         login_btn = gr.Button("Login")
         login_output = gr.Textbox(label="Login Result", interactive=False)
 
-        login_btn.click(login_page, inputs=[email_input_log, password_input_log], outputs=login_output)
+        def validate_login_fields(email, password):
+            if not email or not password:
+                return "Error: All fields are mandatory. Please fill out all required fields."
+            return login_page(email, password)
+
+        login_btn.click(
+            validate_login_fields,
+            inputs=[email_input_log, password_input_log],
+            outputs=login_output
+        )
 
     with gr.Tab("Upload Video"):
         sport_branch_input = gr.Dropdown(
-            ["Sprint Start", "Sprint Running", "Shot Put", "Relay Receiver", "Long Jump", "Javelin", "High Jump", "Discus Throw", "Hurdling"],
-            label="Select Sport Branch"
+            ["", "Sprint Start", "Sprint Running", "Shot Put", "Relay Receiver", "Long Jump", "Javelin", "High Jump", "Discus Throw", "Hurdling"],
+            label="Select Sport Branch *"
         )
-        video_input = gr.Video(label="Upload Video")
+        video_input = gr.Video(label="Upload Video *")
         upload_btn = gr.Button("Upload")
         upload_output = gr.Textbox(label="Status")
 
-        upload_btn.click(upload_video, inputs=[video_input, sport_branch_input], outputs=upload_output)
+        def validate_upload_fields(file, sport_branch):
+            if not file:
+                return "Error: Please upload a video file."
+            if not sport_branch or sport_branch == "":
+                return "Error: Please select a sport branch."
+            return upload_video(file, sport_branch)
+
+        upload_btn.click(
+            validate_upload_fields,
+            inputs=[video_input, sport_branch_input],
+            outputs=upload_output
+        )
 
     with gr.Tab("View Results"):
         gr.Markdown("## View Results")
@@ -199,4 +271,3 @@ with gr.Blocks() as athletics_app:
             gr.Markdown(f"**{video[0]} {video[1]}** uploaded: {video[2]} by {video[3]}")
 
 athletics_app.launch()
-
