@@ -7,6 +7,9 @@ from settings.config import CONNECTION_STRING, TRIGGER_URL
 import re
 from datetime import datetime
 
+
+
+
 # Validate email format
 def is_valid_student_email(email):
     return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zA-Z]+)*@student\.howest\.be$', email))
@@ -161,51 +164,6 @@ def get_uploaded_videos():
         INNER JOIN Users u ON v.UserID = u.UserID
     """)
     return cursor.fetchall()
-
-# with gr.Blocks() as athletics_app:
-#     gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
-
-#     with gr.Tab("Register"):
-#         first_name_input = gr.Textbox(label="First Name")
-#         last_name_input = gr.Textbox(label="Last Name")
-#         email_input = gr.Textbox(label="Email")
-#         password_input_reg = gr.Textbox(label="Password", type="password")
-#         role_input_reg = gr.Radio(["student", "teacher"], label="Role")
-#         register_btn = gr.Button("Register")
-#         register_output = gr.Textbox(label="Registration Result", interactive=False)
-
-#         register_btn.click(
-#             register_page,
-#             inputs=[first_name_input, last_name_input, email_input, password_input_reg, role_input_reg],
-#             outputs=register_output
-#         )
-
-#     with gr.Tab("Login"):
-#         email_input_log = gr.Textbox(label="Email")
-#         password_input_log = gr.Textbox(label="Password", type="password")
-#         login_btn = gr.Button("Login")
-#         login_output = gr.Textbox(label="Login Result", interactive=False)
-
-#         login_btn.click(login_page, inputs=[email_input_log, password_input_log], outputs=login_output)
-
-#     with gr.Tab("Upload Video"):
-#         sport_branch_input = gr.Dropdown(
-#             ["Sprint Start", "Sprint Running", "Shot Put", "Relay Receiver", "Long Jump", "Javelin", "High Jump", "Discus Throw", "Hurdling"],
-#             label="Select Sport Branch"
-#         )
-#         video_input = gr.Video(label="Upload Video")
-#         upload_btn = gr.Button("Upload")
-#         upload_output = gr.Textbox(label="Status")
-
-#         upload_btn.click(upload_video, inputs=[video_input, sport_branch_input], outputs=upload_output)
-
-#     with gr.Tab("View Results"):
-#         gr.Markdown("## View Results")
-#         uploaded_videos = get_uploaded_videos()
-#         for video in uploaded_videos:
-#             gr.Markdown(f"**{video[0]} {video[1]}** uploaded: {video[2]} by {video[3]}")
-
-# athletics_app.launch()
 
 with gr.Blocks() as athletics_app:
     gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
