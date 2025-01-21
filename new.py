@@ -257,14 +257,29 @@ def make_prediction(model, video_path):
     return f"Average Score: {average_score:.2f} out of 5"   
 
 
-def get_uploaded_videos():
+def get_uploaded_videos(email, role):
     conn = connect_to_db()
     cursor = conn.cursor()
-    cursor.execute("""
-        SELECT v.FileName, v.SportBranch, v.UploadTime, u.Email, v.Score
-        FROM Videos v
-        INNER JOIN Users u ON v.UserID = u.UserID
-    """)
+
+    # Fetch results based on role
+    if role == "student":
+        query = """
+            SELECT v.FileName, v.SportBranch, v.UploadTime, u.Email, v.Score
+            FROM Videos v
+            INNER JOIN Users u ON v.UserID = u.UserID
+            WHERE u.Email = ?
+        """
+        cursor.execute(query, (email,))
+    elif role == "teacher":
+        query = """
+            SELECT v.FileName, v.SportBranch, v.UploadTime, u.Email, v.Score
+            FROM Videos v
+            INNER JOIN Users u ON v.UserID = u.UserID
+        """
+        cursor.execute(query)
+    else:
+        return "Error: Unauthorized access."
+
     uploaded_videos = cursor.fetchall()
 
     # Create the table header
@@ -301,7 +316,6 @@ def get_uploaded_videos():
 
     table_html += "</table>"
     return table_html
-
 
 
 with gr.Blocks() as athletics_app:
@@ -363,11 +377,25 @@ with gr.Blocks() as athletics_app:
 
     with gr.Tab("View Results"):
         results_output = gr.HTML(label="Video Results")
+        get_results_btn = gr.Button("Get Results")
 
         def display_results():
-            results = get_uploaded_videos()
-            return results
+            if current_user_email is None:
+                return "Error: Please log in to view results."
 
-        gr.Button("Get Results").click(display_results, outputs=results_output)
+            # Determine role of the current user
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            cursor.execute("SELECT Role FROM Users WHERE Email = ?", (current_user_email,))
+            user_role = cursor.fetchone()
+
+            if user_role:
+                role = user_role[0]
+                results = get_uploaded_videos(current_user_email, role)
+                return results
+            else:
+                return "Error: Unable to determine user role."
+
+        get_results_btn.click(display_results, outputs=results_output)
 
 athletics_app.launch(debug=True)
