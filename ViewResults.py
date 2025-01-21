@@ -6,13 +6,13 @@ import os
 from settings.config import CONNECTION_STRING, TRIGGER_URL
 import re
 from datetime import datetime
-
-
-
+import tensorflow as tf
+import numpy as np
+import cv2
 
 # Validate email format
 def is_valid_student_email(email):
-    return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zA-Z]+)*@student\.howest\.be$', email))
+    return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zAZ]+)*@student\.howest\.be$', email))
 
 def is_valid_teacher_email(email):
     return bool(re.match(r'^[a-zA-Z]+(?:\.[a-zA-Z]+)*@howest\.be$', email))
@@ -33,12 +33,11 @@ def validate_password(password):
 
 def connect_to_db():
     conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
-                      'Server=tcp:atish.database.windows.net,1433;'
-                      'Database=atish-LoginData;'
-                      'Uid=atish;Pwd=13sql17_ctai;'
-                      'Encrypt=yes;TrustServerCertificate=no;'
-                      'Connection Timeout=30;')
-
+                          'Server=tcp:atish.database.windows.net,1433;'
+                          'Database=atish-LoginData;'
+                          'Uid=atish;Pwd=13sql17_ctai;'
+                          'Encrypt=yes;TrustServerCertificate=no;'
+                          'Connection Timeout=30;')
     return conn
 
 def hash_password(password):
@@ -68,15 +67,21 @@ def register_user(first_name, last_name, email, password, role):
     conn.commit()
     return f"User '{first_name} {last_name}' registered successfully as {role}."
 
+
 def validate_login(email, password):
     conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute("SELECT Password, Role FROM Users WHERE Email = ?", (email,))
     user_data = cursor.fetchone()
 
+    print(f"User data from DB: {user_data}")  # Debugging output
+
     if user_data:
         stored_password, role = user_data
-        if stored_password == hash_password(password):
+        input_password_hashed = hash_password(password)
+        print(f"Stored Password: {stored_password}, Input Password Hashed: {input_password_hashed}")  # Debugging output
+
+        if stored_password == input_password_hashed:
             return role
     return "Invalid email or password"
 
@@ -98,14 +103,24 @@ def login_page(email, password):
     else:
         return "Invalid email or password. Please try again."
 
-# def register_page(first_name, last_name, email, password, role):
-#     return register_user(first_name, last_name, email, password, role)
 def register_page(first_name, last_name, email, password, role):
     if not first_name.strip():
         return "Error: First name is required."
     if not last_name.strip():
         return "Error: Last name is required."
-    return register_user(first_name, last_name, email, password, role)
+    
+    registration_result = register_user(first_name, last_name, email, password, role)
+    
+    if "Error" in registration_result:
+        return registration_result
+    
+    global current_user_email
+    current_user_email = email
+    
+    if role == 'student':
+        return student_view()
+    elif role == 'teacher':
+        return teacher_view()
 
 
 UPLOAD_API_URL = TRIGGER_URL
@@ -154,7 +169,66 @@ def upload_video(file, sport_branch):
     else:
         return f"Upload failed: {response.text}"
 
-# Define get_uploaded_videos function
+# Model file path mapping
+SPORT_BRANCH_MODEL_MAPPING = {
+    "Sprint Start": "models/Sprint_Start.h5",
+    "Sprint Running": "models/Sprint.h5",
+    "Shot Put": "models/Kogelstonen.h5",
+    "Relay Receiver": "models/Estafette.h5",
+    "Long Jump": "models/Verspringen.h5",
+    "Javelin": "models/Speerwerpen.h5",
+    "High Jump": "models/Hoogspringen.h5",
+    "Discus Throw": "models/Discurwepen.h5",
+    "Hurdling": "models/Hordelopen.h5"
+}
+
+def load_model(sport_branch):
+    model_path = SPORT_BRANCH_MODEL_MAPPING.get(sport_branch)
+    if not model_path:
+        return f"Error: No model found for sport branch: {sport_branch}"
+    
+    try:
+        # Load the model without compiling
+        model = tf.keras.models.load_model(model_path, compile=False)
+        return model
+    except Exception as e:
+        return f"Error loading model for {sport_branch}: {str(e)}"
+
+
+
+def extract_features_from_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    frames = []
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.resize(frame, (224, 224))  # Adjust size as per model input requirement
+        frame = frame / 255.0  # Normalize if necessary
+        frames.append(frame)
+
+    cap.release()
+    frames = np.array(frames)
+
+    if len(frames.shape) == 3:
+        frames = np.expand_dims(frames, axis=0)  # Add batch dimension
+
+    return frames
+
+def compile_model(model):
+    model.compile(optimizer='adam', loss='mse', metrics=['mse'])
+    return model
+
+def make_prediction(model, video_path):
+    # Compile the model before using it
+    model = compile_model(model)
+    
+    features = extract_features_from_video(video_path)
+    predictions = model.predict(features)
+    return predictions
+
+
 def get_uploaded_videos():
     conn = connect_to_db()
     cursor = conn.cursor()
@@ -163,7 +237,23 @@ def get_uploaded_videos():
         FROM Videos v
         INNER JOIN Users u ON v.UserID = u.UserID
     """)
-    return cursor.fetchall()
+    uploaded_videos = cursor.fetchall()
+
+    results = []
+    for video in uploaded_videos:
+        video_path = video[0]  # Assuming this is the path to the uploaded video
+        sport_branch = video[1]
+        
+        # Load the model for the sport branch
+        model = load_model(sport_branch)
+        if isinstance(model, str):  # Check if model loading was successful
+            results.append(f"Error loading model for {sport_branch}: {model}")
+        else:
+            # Make prediction on the video
+            prediction = make_prediction(model, video_path)
+            results.append(f"Video: {video[0]}, Sport: {sport_branch}, Prediction: {prediction}")
+    
+    return results
 
 with gr.Blocks() as athletics_app:
     gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
@@ -223,9 +313,12 @@ with gr.Blocks() as athletics_app:
         )
 
     with gr.Tab("View Results"):
-        gr.Markdown("## View Results")
-        uploaded_videos = get_uploaded_videos()
-        for video in uploaded_videos:
-            gr.Markdown(f"**{video[0]} {video[1]}** uploaded: {video[2]} by {video[3]}")
+        results_output = gr.Textbox(label="Video Results", interactive=False)
 
-athletics_app.launch()
+        def display_results():
+            results = get_uploaded_videos()
+            return "\n".join(results)
+
+        gr.Button("Get Results").click(display_results, outputs=results_output)
+
+athletics_app.launch(debug=True)
