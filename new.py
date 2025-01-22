@@ -173,15 +173,15 @@ def upload_video(file, sport_branch):
     return f"Video uploaded successfully for {sport_branch}! {prediction_result}"
 
 SPORT_BRANCH_MODEL_MAPPING = {
-    "Sprint Start": "models/Sprint_Start.h5",
-    "Sprint Running": "models/Sprint.h5",
-    "Shot Put": "models/Kogelstoten.h5",
-    "Relay Receiver": "models/Estafette.h5",
-    "Long Jump": "models/Verspringen.h5",
-    "Javelin": "models/Speerwerpen.h5",
-    "High Jump": "models/Hoogspringen.h5",
-    "Discus Throw": "models/Discurweper.h5",
-    "Hurdling": "models/Hordelopen.h5"
+    "Sprint Start": "new_models/Sprint_Start.h5",
+    "Sprint Running": "new_models/Sprint.h5",
+    "Shot Put": "new_models/Kogelstoten.h5",
+    "Relay Receiver": "new_models/Estafette.h5",
+    "Long Jump": "new_models/Verspringen.h5",
+    "Javelin": "new_models/Speerwerpen.h5",
+    "High Jump": "new_models/Hoogspringen.h5",
+    "Discus Throw": "new_models/Discurweper.h5",
+    "Hurdling": "new_models/Hoogspringen.h5"
 }
 
 # Load pre-trained model for feature extraction (MobileNetV2)
@@ -455,4 +455,8 @@ with gr.Blocks() as athletics_app:
 
         get_results_btn.click(display_results, outputs=results_output)
 
-athletics_app.launch(debug=True)
+if __name__ == '__main__':
+    athletics_app.launch(server_name="0.0.0.0", server_port=7860, share=True)
+# athletics_app.launch(debug=True, share=True)
+# athletics_app.launch(debug=True, server_port=7860)
+# athletics_app.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
