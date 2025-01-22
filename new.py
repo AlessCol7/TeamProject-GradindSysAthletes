@@ -151,6 +151,8 @@ def upload_video(file, sport_branch):
 
     # Make prediction on uploaded video
     prediction_result = make_prediction(model, file_path)
+    print(f"Prediction result for {sport_branch}: {prediction_result}")
+
 
     # Save video details in the database
     if prediction_result.startswith("Error"):
@@ -190,13 +192,54 @@ def load_model(sport_branch):
     if not model_path:
         return f"Error: No model found for sport branch: {sport_branch}"
     
+    # Debugging: Print model path
+    print(f"Loading model for {sport_branch} from: {model_path}")
+    
     try:
         model = tf.keras.models.load_model(model_path, custom_objects={"mse": tf.keras.losses.MeanSquaredError()})
         return model
     except Exception as e:
         return f"Error loading model for {sport_branch}: {str(e)}"
+    
+def inspect_model_weights(model):
+    """
+    Print the weights of each layer in the model.
+    """
+    for layer in model.layers:
+        weights = layer.get_weights()
+        print(f"Weights for layer {layer.name}: {weights}")
+
+    
+def test_model_with_synthetic_data(model):
+    """
+    Test the model with synthetic random input features to ensure it generates varying predictions.
+    """
+    synthetic_features = np.random.random((1, 51))  # Shape must match input features after PCA
+    synthetic_prediction = model.predict(synthetic_features)
+    print(f"Prediction on synthetic input: {synthetic_prediction}")
+
+
+def check_input_features(features):
+    """
+    Print the shape and sample of the input features to ensure correctness.
+    """
+    print(f"Input features shape: {features.shape}")
+    print(f"Sample input features (first 5 rows):\n{features[:5]}")
+    print(f"Standard deviation of features: {np.std(features, axis=0).mean()}")
+
 
 TARGET_FEATURE_SIZE = 51
+
+from sklearn.preprocessing import StandardScaler
+
+def normalize_features(features):
+    """
+    Normalize features using StandardScaler.
+    """
+    scaler = StandardScaler()
+    normalized_features = scaler.fit_transform(features)
+    print(f"Normalized features (first 5 rows):\n{normalized_features[:5]}")
+    return normalized_features
 
 def extract_features_from_video(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -209,52 +252,66 @@ def extract_features_from_video(video_path):
         if not ret:
             break
         
-        # Resize the frame to 224x224 and preprocess it for MobileNetV2
         frame_resized = cv2.resize(frame, (224, 224))
         frame_preprocessed = preprocess_input(frame_resized)
 
-        # Extract features from the frame using MobileNetV2
         feature_map = mobilenet_model.predict(np.expand_dims(frame_preprocessed, axis=0))
         feature_vector = feature_map.flatten()
-        
         features.append(feature_vector)
 
     cap.release()
 
-    # If there are no frames, return an error
     if not features:
         return None, "Error: No frames extracted from video."
 
-    # Stack features and apply PCA to reduce dimensions
     features = np.array(features)
-    
-    # Apply PCA to reduce the feature dimensions to the desired size
     pca = PCA(n_components=TARGET_FEATURE_SIZE)
     features_reduced = pca.fit_transform(features)
 
-    # Return the average feature vector for the video
+    # Debugging: Print PCA explained variance
+    print(f"PCA explained variance ratio: {pca.explained_variance_ratio_}")
+    print(f"Total variance retained: {sum(pca.explained_variance_ratio_):.2f}")
+    print(f"Input features shape: {features.shape}")
+    print(f"Sample input features:\n{features[:5]}") 
+    
     return np.mean(features_reduced, axis=0), None
 
+def check_pca_output(pca_transformed_features, pca_model):
+    """
+    Check the shape and variance explained by PCA.
+    """
+    print(f"PCA-transformed features shape: {pca_transformed_features.shape}")
+    print(f"PCA explained variance ratio:\n{pca_model.explained_variance_ratio_}")
+    print(f"Total variance retained: {np.sum(pca_model.explained_variance_ratio_):.2f}")
+
+
 def make_prediction(model, video_path):
+    # For debugging, add a synthetic test case
+    test_features = np.random.random((1, 51))  # Simulated random input
+    print(f"Testing with random input: {test_features}")
+    test_predictions = model.predict(test_features)
+    print(f"Test prediction on random input: {test_predictions}")
+
+    # Proceed with normal prediction
     features, error = extract_features_from_video(video_path)
     if error:
         return error
-    
+
     if features.size == 0:
         return "Error: No frames extracted from video."
 
-    # Reshape to match the model's input shape (1, 51)
     features = np.reshape(features, (1, -1))  # Ensure shape is (1, 51)
-    
-    # Make the prediction
     predictions = model.predict(features)
-    
-    # Ensure predictions are meaningful and in the expected range
+    print(f"Raw predictions: {predictions}")
+
     frame_scores = predictions.flatten()
     average_score = np.mean(frame_scores)
+    print(f"Average score before clipping: {average_score}")
     average_score = np.clip(average_score, 0, 5)
-    
-    return f"Average Score: {average_score:.2f} out of 5"   
+    return f"Average Score: {average_score:.2f} out of 5"
+
+
+  
 
 
 def get_uploaded_videos(email, role):
@@ -319,7 +376,7 @@ def get_uploaded_videos(email, role):
 
 
 with gr.Blocks() as athletics_app:
-    gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System")
+    gr.Markdown("# Athletics App - Welcome to the Athletics Evaluation System 🏃‍♂️🏅")
 
     with gr.Tab("Register"):
         first_name_input = gr.Textbox(label="First Name *")
