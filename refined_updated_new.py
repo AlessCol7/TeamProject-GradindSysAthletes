@@ -174,7 +174,7 @@ def upload_video(file, sport_branch, guess_grade=None):
 
 
 SPORT_BRANCH_MODEL_MAPPING = {
-    "Sprint Start": "new_models/Sprint_Start.h5",
+    "Sprint Start": "new_models/Sprint_Start_1.h5",
     "Sprint Running": "new_models/Sprint.h5",
     "Shot Put": "new_models/Kogelstoten.h5",
     "Relay Receiver": "new_models/Estafette.h5",
@@ -474,7 +474,9 @@ with gr.Blocks() as athletics_app:
         get_results_btn.click(display_results, outputs=results_output)
 
 if __name__ == '__main__':
-    athletics_app.launch(server_name="0.0.0.0", server_port=7860, share=True)
+    athletics_app.launch(debug=True)
+    #athletics_app.launch(server_name="0.0.0.0", server_port=7860, share=True)
+
 # athletics_app.launch(debug=True, share=True)
 # athletics_app.launch(debug=True, server_port=7860)
 # athletics_app.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
