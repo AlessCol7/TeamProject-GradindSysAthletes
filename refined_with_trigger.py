@@ -572,5 +572,5 @@ with gr.Blocks() as athletics_app:
         get_results_btn.click(display_results, outputs=results_output)
 
 if __name__ == '__main__':
-    # athletics_app.launch(debug=True)
-        athletics_app.launch(server_name="0.0.0.0", server_port=7860, share=True)
+    athletics_app.launch(debug=True)
+        # athletics_app.launch(server_name="0.0.0.0", server_port=7860, share=True)
