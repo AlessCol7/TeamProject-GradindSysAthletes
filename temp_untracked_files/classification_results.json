@@ -1,0 +1,22 @@
+{
+    "class_percentages": {
+        "Estafette.json": 50.26178010471204,
+        "Hordenlopen.json": 7.853403141361256,
+        "Verspringen.json": 19.895287958115183,
+        "Speerwerpen.json": 20.94240837696335,
+        "sprint.json": 0.5235602094240838,
+        "Kogelstoten.json": 0.5235602094240838
+    },
+    "average_probabilities": {
+        "Discurweper.json": 3.9319371727748615,
+        "Estafette.json": 19.37696335078535,
+        "Hoogspringen.json": 5.41884816753926,
+        "Hordenlopen.json": 16.214659685863868,
+        "Kogelstoten.json": 6.942408376963351,
+        "Speerwerpen.json": 20.507853403141375,
+        "sprint_start.json": 8.167539267015709,
+        "sprint.json": 1.9109947643979015,
+        "Verspringen.json": 17.52879581151833
+    },
+    "weighted_predicted_score": 4.0
+}
