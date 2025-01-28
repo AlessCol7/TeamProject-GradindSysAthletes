@@ -1,0 +1,6 @@
+[submodule "UI/Athletics-BlazorApplication"]
+	path = UI/Athletics-BlazorApplication
+	url = https://github.com/your-username/blazor-application-repo.git
+[submodule "UI/Athletics-CloudStorage"]
+	path = UI/Athletics-CloudStorage
+	url = https://github.com/your-username/cloud-storage-repo.git
