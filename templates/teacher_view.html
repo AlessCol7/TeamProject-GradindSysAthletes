@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher View</title>
+    <style>
+        /* Add your CSS styling here */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teacher View</h1>
+    <label for="student-select">Select a student:</label>
+    {{ dropdown_html | safe }}
+    
+    <div id="video-table">
+        <!-- Filtered videos will be displayed here -->
+    </div>
+
+    <script>
+        function filterVideos() {
+            var studentEmail = document.getElementById('student-select').value;
+            fetch(`/get_videos_by_student?email=${studentEmail}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('video-table').innerHTML = html;
+                });
+        }
+    </script>
+</body>
+</html>
