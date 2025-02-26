@@ -4,12 +4,7 @@ import hashlib
 
 # Connect to Azure SQL Database
 def connect_to_db():
-    conn = pyodbc.connect('Driver={ODBC Driver 17 for SQL Server};'
-                      'Server=tcp:atish.database.windows.net,1433;'
-                      'Database=atish-LoginData;'
-                      'Uid=atish;Pwd=13sql17_ctai;'
-                      'Encrypt=yes;TrustServerCertificate=no;'
-                      'Connection Timeout=30;')
+    conn = pyodbc.connect('Driver={.}')
 
     return conn
 
